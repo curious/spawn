@@ -13,6 +13,8 @@ module Spawn
   @@logger = Rails.logger
   # forked children to kill on exit
   @@punks = []
+  # hook to call after forking
+  @@after_fork_block = nil
 
   # Set the options to use every time spawn is called unless specified
   # otherwise.  For example, in your environment, do something like
@@ -33,6 +35,11 @@ module Spawn
   # set the resources to disconnect from in the child process (when forking)
   def self.resources_to_close(*resources)
     @@resources = resources
+  end
+
+  # set hook to call after forking, for any other cleanup that is required
+  def self.after_fork(&block)
+    @@after_fork_block = block
   end
 
   # close all the resources added by calls to resource_to_close
@@ -136,6 +143,9 @@ module Spawn
 
         # set the process name
         $0 = options[:argv] if options[:argv]
+
+        # call any Spawn::after_fork hooks specified in config/initializers/spawn.rb
+        @@after_fork_block.call if @@after_fork_block
 
         # run the block of code that takes so long
         yield
